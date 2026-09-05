@@ -1,0 +1,17 @@
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Local environment / secrets
+.env
+.env.local
+
+# Node / Scratch files
+node_modules/
+scratch/
+*.log
+
+# PocketBase local database & binary
+pb_data/
+pocketbase.exe
+

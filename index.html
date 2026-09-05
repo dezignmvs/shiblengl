@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Spoken English Level 1 – Daily Practice Tracker</title>
+  <meta name="description" content="Daily practice tracking and accountability platform for Advanced Spoken English Level 1 students. Track speaking with ChatGPT Voice and listening activities.">
+  
+  <!-- Modern Fonts with Cobe Style Fallbacks -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Lexend:wght@400;500;600;700;800&family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Iconify Icon Framework -->
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png">
+
+  <!-- Main CSS System -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- PocketBase Web SDK (https://pocketbase.io) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pocketbase/0.21.1/pocketbase.umd.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="header">
+    <div class="header-container">
+      <div class="brand" id="brandLogo">
+        <img src="logo.jpg" alt="Level 1 Spoken English Logo" class="brand-logo-img">
+        <div>
+          <h1 class="brand-title">Level 1 Spoken English</h1>
+          <div class="brand-subtitle">Daily Practice Tracker</div>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <!-- Unauthenticated Header Login Button -->
+        <div id="unauthHeaderSection">
+          <button id="btnNavLogin" class="btn-header-login">
+            <iconify-icon icon="lucide:log-in" style="font-size: 16px;"></iconify-icon> Sign In
+          </button>
+        </div>
+
+        <!-- Authenticated User Header Pill -->
+        <div id="userHeaderSection" style="display: none;">
+          <div class="user-status-pill">
+            <iconify-icon icon="lucide:user-circle-2" style="font-size: 18px;"></iconify-icon>
+            <span id="headerUserName" style="font-size: 14px; font-weight: 600;">Student</span>
+            <span id="headerRoleBadge" class="role-badge student">Student</span>
+            <button id="btnLogout" class="btn-icon-logout" title="Log Out">
+              <iconify-icon icon="lucide:log-out" style="font-size: 16px;"></iconify-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-container">
+
+    <!-- 0. LANDING PAGE VIEW -->
+    <section id="landingView">
+      <div class="landing-hero-custom">
+        <!-- Top Initiative Attribution -->
+        <div class="landing-initiative">
+          <div class="initiative-sub">Initiative from</div>
+          <h2 class="initiative-title">Odamala Mahallu Committee <span class="ampersand">&amp;</span> IFADA Alumni</h2>
+        </div>
+
+        <!-- Course Header Line -->
+        <div class="landing-course-line">
+          <span class="course-label">Free Course on</span>
+          <div class="course-hr"></div>
+        </div>
+
+        <!-- Huge Main Headline -->
+        <h1 class="landing-main-title">Spoken English</h1>
+
+        <!-- Framed Subtitle Box -->
+        <div class="landing-description-box">
+          <p>
+            Master Spoken English with Daily AI Conversation &amp; Accountability. Log your daily 20-minute ChatGPT Voice conversations, complete assigned listening video drills, and build an unbreakable daily speaking streak.
+          </p>
+        </div>
+
+        <!-- Centered Login Button with Fingerprint Icon -->
+        <div class="landing-cta-centered">
+          <button class="btn-landing-purple-fingerprint" id="btnLandingStudent">
+            <span>Login</span>
+            <iconify-icon icon="ph:fingerprint-duotone" style="font-size: 26px;"></iconify-icon>
+          </button>
+          <button class="btn-landing-secondary-subtle" id="btnLandingAdmin">
+            <iconify-icon icon="lucide:shield-check" style="font-size: 16px;"></iconify-icon> Instructor Dashboard
+          </button>
+        </div>
+      </div>
+
+      <!-- Feature Grid -->
+      <div class="landing-features-grid">
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon speaking">
+            <iconify-icon icon="lucide:bot" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <h3>1. ChatGPT Voice Practice</h3>
+          <p>Get ready-made daily prompts for 20–minute spoken English conversations with ChatGPT. One-click copy &amp; launch.</p>
+        </div>
+
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon listening">
+            <iconify-icon icon="lucide:headphones" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <h3>2. Curated Listening Drills</h3>
+          <p>Watch assigned video resources, practice pronunciation shadowing, and mark listening assignments complete.</p>
+        </div>
+
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon streak">
+            <iconify-icon icon="ph:fire-fill" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <h3>3. Consistency &amp; Day Streaks</h3>
+          <p>Maintain your daily practice streak, monitor your weekly progress grid, and stay accountable every single day.</p>
+        </div>
+
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon admin">
+            <iconify-icon icon="lucide:bar-chart-3" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <h3>4. Instructor Monitoring</h3>
+          <p>Instructors publish daily topics, monitor student completion rates in real-time, and identify inactive students.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. AUTH / LOGIN VIEW -->
+    <section id="authView" class="auth-container" style="display: none;">
+      <div class="login-card">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div class="brand-icon" id="loginCardIcon" style="margin: 0 auto 12px; width: 48px; height: 48px; font-size: 26px; background: #4a0467; color: #ffffff;">
+            <iconify-icon icon="ph:fingerprint-duotone"></iconify-icon>
+          </div>
+          <h2 style="font-family: var(--font-heading); font-weight: 800;">Welcome Back</h2>
+          <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Sign in to your practice portal</p>
+        </div>
+
+        <form id="loginForm" autocomplete="off">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Username</label>
+            <input type="text" id="loginEmail" class="form-input" placeholder="Enter your username" autocomplete="off" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" autocomplete="new-password" required>
+          </div>
+          <div id="authErrorMessage" style="color: var(--accent-danger); font-size: 13px; margin-bottom: 14px; display: none;"></div>
+          
+          <button type="submit" class="btn-submit" style="width: 100%;">
+            <iconify-icon icon="lucide:log-in" style="font-size: 16px;"></iconify-icon> Sign In
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 2. STUDENT DASHBOARD VIEW -->
+    <section id="studentDashboardView" style="display: none;">
+      
+      <!-- Personal Progress Hero Banner -->
+      <div class="creative-hero-banner">
+        <div class="hero-text-group">
+          <h2>Daily Practice Routine</h2>
+          <p id="todayDateLabel">Loading date...</p>
+        </div>
+
+        <div class="metrics-ring-group">
+          <div class="streak-pill-creative">
+            <iconify-icon icon="ph:fire-fill" style="font-size: 18px;"></iconify-icon>
+            <span id="studentStreakCount">0</span> Day Streak
+          </div>
+
+          <div class="stat-chip-minimal">
+            <iconify-icon icon="lucide:mic" class="stat-chip-icon" style="color: var(--accent-speaking);"></iconify-icon>
+            <div>
+              <div class="stat-chip-val" id="studentTotalSpeaking">0</div>
+              <div class="stat-chip-lbl">Speaking Days</div>
+            </div>
+          </div>
+
+          <div class="stat-chip-minimal">
+            <iconify-icon icon="lucide:headphones" class="stat-chip-icon" style="color: var(--accent-listening);"></iconify-icon>
+            <div>
+              <div class="stat-chip-val" id="studentTotalListening">0</div>
+              <div class="stat-chip-lbl">Listening Days</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Practice Activities Grid -->
+      <div class="grid-container grid-container-2col">
+        
+        <!-- 4.1 Daily Speaking Practice Card -->
+        <div class="card card-speaking">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon speaking">
+                <iconify-icon icon="lucide:mic"></iconify-icon>
+              </div>
+              <h3 class="card-title">1. Speaking Practice</h3>
+            </div>
+            <span id="speakingBadge" class="status-badge pending">
+              <iconify-icon icon="lucide:clock"></iconify-icon> Pending
+            </span>
+          </div>
+
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">
+            Speaking Topic & Instructions (20 Mins)
+          </div>
+          <div id="speakingTopicText" class="practice-topic">
+            Loading today's speaking practice topic...
+          </div>
+
+          <!-- ChatGPT Speaking Prompt Box -->
+          <div class="prompt-box">
+            <div class="prompt-header">
+              <div class="prompt-label">
+                <iconify-icon icon="lucide:bot" style="font-size: 16px;"></iconify-icon> ChatGPT Voice Prompt
+              </div>
+              <button id="btnCopyPrompt" class="btn-copy-prompt">
+                <iconify-icon icon="lucide:copy" style="font-size: 14px;"></iconify-icon> Copy Prompt
+              </button>
+            </div>
+            <div id="chatgptPromptText" class="prompt-text">
+              Loading ChatGPT prompt...
+            </div>
+          </div>
+
+          <div style="font-size: 12px; color: var(--text-subtle); margin-bottom: 16px; display: flex; align-items: center; gap: 6px;">
+            <iconify-icon icon="lucide:info" style="font-size: 15px;"></iconify-icon> Open ChatGPT on mobile, paste this prompt, and tap the Voice icon to begin.
+          </div>
+
+          <button id="btnToggleSpeaking" class="btn-complete btn-complete-speaking">
+            <iconify-icon icon="lucide:check-circle-2" style="font-size: 18px;"></iconify-icon> Mark Speaking Practice as Completed
+          </button>
+        </div>
+
+        <!-- 5. Daily Listening Practice Card -->
+        <div class="card card-listening">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon listening">
+                <iconify-icon icon="lucide:play-circle"></iconify-icon>
+              </div>
+              <h3 class="card-title">2. Listening Practice</h3>
+            </div>
+            <span id="listeningBadge" class="status-badge pending">
+              <iconify-icon icon="lucide:clock"></iconify-icon> Pending
+            </span>
+          </div>
+
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">
+            Listening Activity Title
+          </div>
+          <h4 id="listeningTitleText" style="font-size: 16px; margin-bottom: 12px; color: var(--text-main);">
+            Loading listening activity title...
+          </h4>
+
+          <div id="listeningInstructionText" style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+            Loading listening instructions...
+          </div>
+
+          <!-- Embedded YouTube Video Container -->
+          <div id="videoContainer" class="video-wrapper">
+            <iframe id="listeningIframe" src="" title="Listening Activity Video" allowfullscreen></iframe>
+          </div>
+
+          <a id="listeningDirectLink" href="#" target="_blank" class="resource-link-btn">
+            <iconify-icon icon="lucide:external-link" style="font-size: 15px;"></iconify-icon> Open Resource in YouTube
+          </a>
+
+          <button id="btnToggleListening" class="btn-complete btn-complete-listening">
+            <iconify-icon icon="lucide:check-circle-2" style="font-size: 18px;"></iconify-icon> Mark Listening Practice as Completed
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 7. Weekly Activity History Grid -->
+      <div class="card weekly-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-icon" style="background: var(--accent-primary-light); color: var(--accent-primary);">
+              <iconify-icon icon="lucide:calendar-days"></iconify-icon>
+            </div>
+            <h3 class="card-title">Weekly Activity History</h3>
+          </div>
+        </div>
+
+        <div class="weekly-table-container">
+          <table class="weekly-table">
+            <thead>
+              <tr>
+                <th>Date / Day</th>
+                <th>Speaking Practice</th>
+                <th>Listening Practice</th>
+                <th>Daily Status</th>
+              </tr>
+            </thead>
+            <tbody id="weeklyHistoryTableBody">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 3. ADMINISTRATOR DASHBOARD VIEW -->
+    <section id="adminDashboardView" style="display: none;">
+      
+      <!-- Admin Metric Cards -->
+      <div class="admin-metrics-grid">
+        <div class="admin-metric-card">
+          <div class="stat-icon-wrapper" style="background: var(--accent-primary-light); color: var(--accent-primary);">
+            <iconify-icon icon="lucide:users" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <div>
+            <div id="adminStatTotalStudents" class="metric-num">0</div>
+            <div class="stat-label">Enrolled Students</div>
+          </div>
+        </div>
+
+        <div class="admin-metric-card">
+          <div class="stat-icon-wrapper" style="background: var(--accent-speaking-light); color: var(--accent-speaking);">
+            <iconify-icon icon="lucide:mic" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <div>
+            <div id="adminStatSpeakingToday" class="metric-num" style="color: var(--accent-speaking);">0</div>
+            <div class="stat-label">Speaking Done Today</div>
+          </div>
+        </div>
+
+        <div class="admin-metric-card">
+          <div class="stat-icon-wrapper" style="background: var(--accent-listening-light); color: var(--accent-listening);">
+            <iconify-icon icon="lucide:headphones" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <div>
+            <div id="adminStatListeningToday" class="metric-num" style="color: var(--accent-listening);">0</div>
+            <div class="stat-label">Listening Done Today</div>
+          </div>
+        </div>
+
+        <div class="admin-metric-card">
+          <div class="stat-icon-wrapper" style="background: var(--accent-danger-light); color: var(--accent-danger);">
+            <iconify-icon icon="lucide:user-x" style="font-size: 22px;"></iconify-icon>
+          </div>
+          <div>
+            <div id="adminStatInactiveToday" class="metric-num" style="color: var(--accent-danger);">0</div>
+            <div class="stat-label">No Activity Today</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Tabs Navigation -->
+      <div class="view-tabs">
+        <button class="tab-btn active" id="tabAdminStudents">
+          <iconify-icon icon="lucide:list-checks" style="font-size: 16px;"></iconify-icon> Student Activity Monitor
+        </button>
+        <button class="tab-btn" id="tabAdminContent">
+          <iconify-icon icon="lucide:file-edit" style="font-size: 16px;"></iconify-icon> Daily Content Publisher
+        </button>
+      </div>
+
+      <!-- Section A: Student Activity Monitoring Table -->
+      <div id="adminStudentMonitorSection" class="card">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px;">
+          <h3 class="card-title">Student Progress & Accountability Roster</h3>
+          <button id="btnOpenAddStudentModal" class="btn-submit" style="padding: 8px 18px; font-size: 13.5px;">
+            <iconify-icon icon="lucide:user-plus" style="font-size: 16px;"></iconify-icon> Add New Student
+          </button>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">All Students</button>
+          <button class="filter-btn" data-filter="speaking-done">Speaking Done</button>
+          <button class="filter-btn" data-filter="listening-done">Listening Done</button>
+          <button class="filter-btn" data-filter="inactive">Inactive Today</button>
+        </div>
+
+        <div class="weekly-table-container">
+          <table class="weekly-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Speaking (Today)</th>
+                <th>Listening (Today)</th>
+                <th>Current Streak</th>
+                <th>Account Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminStudentTableBody">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section B: Daily Content Management -->
+      <div id="adminContentSection" class="card" style="display: none;">
+        <h3 class="card-title" style="margin-bottom: 20px;">Publish / Edit Daily Practice Content</h3>
+        
+        <form id="dailyContentForm">
+          <div class="form-group">
+            <label class="form-label" for="contentDate">Target Assignment Date</label>
+            <input type="date" id="contentDate" class="form-input" style="max-width: 240px;" required>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+          <!-- Speaking Practice Fields -->
+          <h4 style="color: var(--accent-speaking); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <iconify-icon icon="lucide:mic" style="font-size: 18px;"></iconify-icon> Daily Speaking Practice Settings
+          </h4>
+
+          <div class="form-group">
+            <label class="form-label" for="speakingTopicInput">Speaking Topic / Instructions</label>
+            <textarea id="speakingTopicInput" class="form-textarea" placeholder="e.g. Practice speaking in English for 20 minutes about your career goals and favorite work achievements." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="chatgptPromptInput">ChatGPT Speaking Prompt</label>
+            <textarea id="chatgptPromptInput" class="form-textarea" style="font-family: monospace;" placeholder='e.g. "I am practicing spoken English. Please have a conversation with me about my career goals. Ask me open questions and correct my mistakes."' required></textarea>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+          <!-- Listening Practice Fields -->
+          <h4 style="color: var(--accent-listening); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <iconify-icon icon="lucide:headphones" style="font-size: 18px;"></iconify-icon> Daily Listening Practice Settings
+          </h4>
+
+          <div class="form-group">
+            <label class="form-label" for="listeningTitleInput">Listening Activity Title</label>
+            <input type="text" id="listeningTitleInput" class="form-input" placeholder="e.g. 10 Essential Business Conversation Idioms" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="listeningInstructionInput">Listening Instruction / Description (Optional)</label>
+            <input type="text" id="listeningInstructionInput" class="form-input" placeholder="e.g. Watch the clip twice and summarize 3 main takeaways.">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="listeningUrlInput">Video / Resource Embed URL (YouTube Link or Embed Code)</label>
+            <input type="url" id="listeningUrlInput" class="form-input" placeholder="https://www.youtube.com/watch?v=EXAMPLE or https://www.youtube.com/embed/EXAMPLE" required>
+          </div>
+
+          <button type="submit" class="btn-submit" style="width: 100%; margin-top: 10px;">
+            <iconify-icon icon="lucide:send" style="font-size: 16px;"></iconify-icon> Publish Daily Practice to Students
+          </button>
+        </form>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal: Add / Edit Student Account -->
+  <div id="studentModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="studentModalTitle" class="card-title">Add New Student</h3>
+        <button id="btnCloseStudentModal" class="btn-modal-close">
+          <iconify-icon icon="lucide:x"></iconify-icon>
+        </button>
+      </div>
+      <form id="studentAccountForm">
+        <input type="hidden" id="modalStudentId">
+        <div class="form-group">
+          <label class="form-label" for="modalStudentName">Full Name</label>
+          <input type="text" id="modalStudentName" class="form-input" placeholder="e.g. Sarah Jenkins" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modalStudentEmail">Username</label>
+          <input type="text" id="modalStudentEmail" class="form-input" placeholder="e.g. sarah or student1" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modalStudentPassword">Login Password</label>
+          <input type="text" id="modalStudentPassword" class="form-input" placeholder="student123" required>
+        </div>
+        <div id="modalErrorMessage" style="color: var(--accent-danger); font-size: 13px; margin-bottom: 12px; display: none;"></div>
+        <button type="submit" class="btn-submit" style="width: 100%;">Save Student Account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Mobile Bottom Nav Bar -->
+  <nav class="mobile-nav" id="mobileNav" style="display: none;">
+    <div class="mobile-nav-item active" id="mobileNavPractice">
+      <iconify-icon icon="lucide:calendar-check" style="font-size: 20px;"></iconify-icon>
+      <span>Today</span>
+    </div>
+    <div class="mobile-nav-item" id="mobileNavHistory">
+      <iconify-icon icon="lucide:line-chart" style="font-size: 20px;"></iconify-icon>
+      <span>History</span>
+    </div>
+    <div class="mobile-nav-item" id="mobileNavProfile">
+      <iconify-icon icon="lucide:user" style="font-size: 20px;"></iconify-icon>
+      <span>Profile</span>
+    </div>
+  </nav>
+
+  <!-- Application Logic Scripts -->
+  <script src="js/pocketbase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

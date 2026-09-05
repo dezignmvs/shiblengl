@@ -1,0 +1,267 @@
+# Step-by-Step Guide: How to Connect PocketBase to this Project
+
+---
+
+## Step 1: Download & Run PocketBase Server (Local Setup)
+
+1. **Download PocketBase**:
+   - Go to [pocketbase.io](https://pocketbase.io) and download the zip file for your OS (Windows x64 / macOS / Linux).
+2. **Extract the Executable**:
+   - Extract the downloaded `.zip` file into a folder (e.g., `C:\pocketbase` or inside your project folder).
+3. **Start the PocketBase Server**:
+   - Open Command Prompt or Terminal in that folder.
+   - Run the command:
+     ```bash
+     `./pocketbase serve``
+     ```
+   - Server starts by default at: `http://127.0.0.1:8090`
+4. **Create Superadmin Account**:
+   - Open your browser and go to: `http://127.0.0.1:8090/_/`
+   - Create your first Admin Email & Password when prompted.
+
+---
+
+> **IMPORTANT**: Raw SQLite `CREATE TABLE` queries do NOT automatically appear in the PocketBase Admin sidebar because PocketBase requires collections to be registered in its internal `_collections` schema system.
+> **You MUST create collections using the PocketBase Admin UI (`+ New collection`) as shown below to get REST API access.**
+
+---
+
+## Step 2: Create Collections using PocketBase Admin UI (Required)
+
+Click **`+ New collection`** on the left sidebar (as shown in your screenshot):
+
+### Collection 1: `practices`
+1. Click **`+ New collection`**
+2. Collection Name: `practices` (Type: Base)
+3. Click **`+ Add field`** to add:
+   - `date` -> **Plain text**
+   - `speakingTopic` -> **Plain text**
+   - `chatgptPrompt` -> **Plain text**
+   - `listeningTitle` -> **Plain text**
+   - `listeningInstruction` -> **Plain text**
+   - `listeningUrl` -> **Plain text / URL**
+4. Click API Rules (lock icon tab) -> Unlock rules so API requests work.
+5. Click **Create** / **Save**.
+
+---
+
+### Collection 2: `logs`
+1. Click **`+ New collection`**
+2. Collection Name: `logs` (Type: Base)
+3. Click **`+ Add field`** to add:
+   - `studentId` -> **Plain text**
+   - `date` -> **Plain text**
+   - `speakingCompleted` -> **Bool**
+   - `speakingTimestamp` -> **Plain text**
+   - `listeningCompleted` -> **Bool**
+   - `listeningTimestamp` -> **Plain text**
+4. Unlock API rules.
+5. Click **Create** / **Save**.
+
+---
+
+### Collection 3: Add Fields to `users`
+1. Click **`users`** on the left menu -> Click **⚙️ Settings / Edit collection** button.
+2. Click **`+ Add field`**:
+   - `role` -> **Plain text** (Default: `student`)
+   - `status` -> **Plain text** (Default: `active`)
+3. Click **Save**.
+
+```sql
+-- ==========================================
+-- QUERY 1: Create 'practices' & 'logs' Tables + Seed Initial Data
+-- (Run this query first)
+-- ==========================================
+
+-- 1. Create 'practices' table
+CREATE TABLE IF NOT EXISTS `practices` (
+    `id` TEXT PRIMARY KEY NOT NULL,
+    `date` TEXT UNIQUE NOT NULL,
+    `speakingTopic` TEXT,
+    `chatgptPrompt` TEXT,
+    `listeningTitle` TEXT,
+    `listeningInstruction` TEXT,
+    `listeningUrl` TEXT,
+    `created` TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%SZ', 'now')),
+    `updated` TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%SZ', 'now'))
+);
+
+-- 2. Create 'logs' table
+CREATE TABLE IF NOT EXISTS `logs` (
+    `id` TEXT PRIMARY KEY NOT NULL,
+    `studentId` TEXT NOT NULL,
+    `date` TEXT NOT NULL,
+    `speakingCompleted` BOOLEAN DEFAULT 0,
+    `speakingTimestamp` TEXT,
+    `listeningCompleted` BOOLEAN DEFAULT 0,
+    `listeningTimestamp` TEXT,
+    `created` TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%SZ', 'now')),
+    `updated` TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%SZ', 'now'))
+);
+
+-- 3. Seed initial practice content for today
+INSERT OR REPLACE INTO `practices` (
+    `id`, `date`, `speakingTopic`, `chatgptPrompt`, `listeningTitle`, `listeningInstruction`, `listeningUrl`
+) VALUES (
+    'prc_001',
+    strftime('%Y-%m-%d', 'now'),
+    'Practice speaking in English for 20 minutes about your childhood memories, your hometown, and your school life.',
+    '"I am practicing spoken English for Advanced Level 1. Please have a friendly conversation with me about my childhood and school life. Ask me open-ended questions, encourage me to expand on my answers, and point out any major grammar or vocabulary mistakes."',
+    'Mastering Fluent English Expression & Daily Vocabulary',
+    'Listen to the speaker pronunciation, pause after key sentences, and practice shadowing the dialogue out loud.',
+    'https://www.youtube.com/embed/5qap5aO4i9A'
+);
+```
+
+### Additional (Optional): Add Custom User Columns
+If your `users` table doesn't already have `role` and `status` columns, run these individually:
+```sql
+ALTER TABLE `users` ADD COLUMN `role` TEXT DEFAULT 'student';
+```
+```sql
+ALTER TABLE `users` ADD COLUMN `status` TEXT DEFAULT 'active';
+```
+
+> **Note**: Creating collections via the PocketBase UI (Method A) is recommended so PocketBase automatically manages collection metadata in `_collections` and applies security API rules.
+
+## Step 3: Verify SDK Script in `index.html`
+
+Ensure the PocketBase JavaScript SDK is included in `<head>` of [index.html](file:///d:/penmdrive/shbl/index.html):
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pocketbase/0.21.1/pocketbase.umd.js"></script>
+```
+
+---
+
+## Step 4: Configure PocketBase URL in `js/pocketbase-config.js`
+
+Open [js/pocketbase-config.js](file:///d:/penmdrive/shbl/js/pocketbase-config.js) and update the server URL:
+
+```javascript
+// For Local Testing:
+const POCKETBASE_URL = "http://127.0.0.1:8090";
+
+// For Live Production (PocketHost or VPS):
+// const POCKETBASE_URL = "https://your-app-name.pockethost.io";
+```
+
+---
+
+## Step 5: Connecting PocketBase in JavaScript Code
+
+### 1. Initialize PocketBase instance:
+```javascript
+const pb = new PocketBase(POCKETBASE_URL);
+```
+
+### 2. User Authentication (Login):
+```javascript
+async function loginUser(usernameOrEmail, password) {
+  try {
+    const authData = await pb.collection('users').authWithPassword(usernameOrEmail, password);
+    console.log('Logged in user:', authData.record);
+    return authData;
+  } catch (error) {
+    console.error('Login failed:', error);
+  }
+}
+```
+
+### 3. Fetching Records:
+```javascript
+// Fetch today's practice content
+async function getTodayPractice(dateStr) {
+  try {
+    const record = await pb.collection('practices').getFirstListItem(`date="${dateStr}"`);
+    return record;
+  } catch (error) {
+    console.log('No practice found for date:', dateStr);
+  }
+}
+```
+
+### 4. Creating / Updating Records:
+```javascript
+// Create or Update Daily Log
+async function saveDailyLog(logData) {
+  try {
+    // Check if record exists
+    const existing = await pb.collection('logs').getFirstListItem(`studentId="${logData.studentId}" && date="${logData.date}"`).catch(() => null);
+    if (existing) {
+      return await pb.collection('logs').update(existing.id, logData);
+    } else {
+      return await pb.collection('logs').create(logData);
+    }
+  } catch (error) {
+    console.error('Error saving log:', error);
+  }
+}
+```
+
+---
+
+## Step 6: Deploying PocketBase to Cloud / Online Access
+
+> [!WARNING]
+> **PocketHost Update**: PocketHost now requires a paid subscription to run instances ("*Error: Instances will not run until you upgrade*").
+
+Here are the best **FREE alternatives** to host or access your PocketBase server online:
+
+---
+
+### Option A: Local PocketBase + Free HTTPS Tunnel (Easiest for Demos & Testing)
+
+Keep PocketBase running on your computer (`./pocketbase serve` at `http://127.0.0.1:8090`) and expose it securely to the internet with a free public URL:
+
+#### Method 1: Using Built-in SSH Tunnel (No installation required)
+Open a new terminal and run:
+```powershell
+ssh -R 80:localhost:8090 nokey@localhost.run
+```
+Copy the generated `https://xxxx.lhr.life` URL!
+
+#### Method 2: Using `npx localtunnel` (Auto-accept prompt with `-y`)
+Open a new terminal and run:
+```powershell
+npx -y localtunnel --port 8090
+```
+Copy the generated `https://xxxx.loca.lt` URL!
+
+3. Update `POCKETBASE_URL` in [js/pocketbase-config.js](file:///d:/penmdrive/shbl/js/pocketbase-config.js):
+   ```javascript
+   const POCKETBASE_URL = "https://your-generated-tunnel-url.loca.lt";
+   ```
+
+---
+
+### Option B: Free 24/7 Cloud Hosting (No Credit Card Required)
+
+To host PocketBase 24/7 online for $0 without keeping your PC powered on:
+
+---
+
+#### Method 1: Render.com (100% Free Web Service)
+
+1. Sign up for a free account at [render.com](https://render.com) (No credit card required).
+2. Click **`New +`** (top right) $\rightarrow$ select **`Web Service`**.
+3. Select **`Deploy an existing image`** $\rightarrow$ click **Next**.
+4. Image URL:
+   ```text
+   ghcr.io/muchweb/pocketbase:latest
+   ```
+5. Fill in the service details:
+   - **Name**: `shbl-spoken-english`
+   - **Region**: Choose closest to you (e.g. Singapore / Frankfurt / Oregon).
+   - **Instance Type**: Select **`Free`** ($0 / month).
+6. Under **Environment Variables**, click **Add Environment Variable**:
+   - Key: `PORT`
+   - Value: `8080`
+7. Click **`Create Web Service`**.
+8. Render will deploy PocketBase in ~1 minute.
+9. **Your 24/7 Live URL** will be shown at the top:
+   `https://shbl-spoken-english.onrender.com`
+10. Open `https://shbl-spoken-english.onrender.com/_/` to set up your Admin credentials.
+11. Update `POCKETBASE_URL` in [js/pocketbase-config.js](file:///d:/penmdrive/shbl/js/pocketbase-config.js):
+    ```javascript
+    const POCKETBASE_URL = "https://shbl-spoken-english.onrender.com";
+    ```
