@@ -27,10 +27,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('loginForm');
   const loginEmail = document.getElementById('loginEmail');
   const loginPassword = document.getElementById('loginPassword');
-  const btnRoleStudent = document.getElementById('btnRoleStudent');
-  const btnRoleAdmin = document.getElementById('btnRoleAdmin');
   const authErrorMessage = document.getElementById('authErrorMessage');
-  let selectedLoginRole = 'student';
+
+  const registerForm = document.getElementById('registerForm');
+  const registerName = document.getElementById('registerName');
+  const registerUsername = document.getElementById('registerUsername');
+  const registerPassword = document.getElementById('registerPassword');
+  const registerErrorMessage = document.getElementById('registerErrorMessage');
+
+  const tabAuthLogin = document.getElementById('tabAuthLogin');
+  const tabAuthRegister = document.getElementById('tabAuthRegister');
+  const authCardTitle = document.getElementById('authCardTitle');
+  const authCardSubtitle = document.getElementById('authCardSubtitle');
 
   // Student Dashboard Elements
   const todayDateLabel = document.getElementById('todayDateLabel');
@@ -113,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileNav.style.display = 'none';
   }
 
-  function showAuthView() {
+  function showAuthView(initialTab = 'login') {
     landingView.style.display = 'none';
     authView.style.display = 'block';
     studentDashboardView.style.display = 'none';
@@ -122,11 +130,58 @@ document.addEventListener('DOMContentLoaded', () => {
     userHeaderSection.style.display = 'none';
     mobileNav.style.display = 'none';
 
-    // Clear inputs so fields start completely empty
+    if (initialTab === 'register' && tabAuthRegister) {
+      switchToRegisterTab();
+    } else {
+      switchToLoginTab();
+    }
+  }
+
+  function switchToLoginTab() {
+    if (!tabAuthLogin) return;
+    tabAuthLogin.classList.add('active');
+    tabAuthLogin.style.background = 'var(--bg-card)';
+    tabAuthLogin.style.color = 'var(--accent-primary)';
+    tabAuthLogin.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+
+    tabAuthRegister.classList.remove('active');
+    tabAuthRegister.style.background = 'transparent';
+    tabAuthRegister.style.color = 'var(--text-muted)';
+    tabAuthRegister.style.boxShadow = 'none';
+
+    loginForm.style.display = 'block';
+    registerForm.style.display = 'none';
+    authCardTitle.textContent = "Welcome Back";
+    authCardSubtitle.textContent = "Sign in to dashboard";
+
     loginEmail.value = '';
     loginPassword.value = '';
     authErrorMessage.style.display = 'none';
     loginEmail.focus();
+  }
+
+  function switchToRegisterTab() {
+    if (!tabAuthRegister) return;
+    tabAuthRegister.classList.add('active');
+    tabAuthRegister.style.background = 'var(--bg-card)';
+    tabAuthRegister.style.color = 'var(--accent-primary)';
+    tabAuthRegister.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+
+    tabAuthLogin.classList.remove('active');
+    tabAuthLogin.style.background = 'transparent';
+    tabAuthLogin.style.color = 'var(--text-muted)';
+    tabAuthLogin.style.boxShadow = 'none';
+
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'block';
+    authCardTitle.textContent = "Create Account";
+    authCardSubtitle.textContent = "Join Advanced Spoken English Level 1";
+
+    registerName.value = '';
+    registerUsername.value = '';
+    registerPassword.value = '';
+    registerErrorMessage.style.display = 'none';
+    registerName.focus();
   }
 
   function showAuthenticatedView(user) {
@@ -163,33 +218,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnNavLogin.addEventListener('click', () => {
-      showAuthView('student');
+      showAuthView('login');
     });
 
     btnLandingStudent.addEventListener('click', () => {
-      showAuthView('student');
+      showAuthView('login');
     });
 
     btnLandingAdmin.addEventListener('click', () => {
-      showAuthView('admin');
+      showAuthView('login');
     });
 
-    if (btnRoleStudent) {
-      btnRoleStudent.addEventListener('click', () => {
-        selectedLoginRole = 'student';
-        btnRoleStudent.classList.add('active');
-        if (btnRoleAdmin) btnRoleAdmin.classList.remove('active');
-        loginEmail.placeholder = "Enter your student username";
-      });
+    if (tabAuthLogin) {
+      tabAuthLogin.addEventListener('click', () => switchToLoginTab());
     }
 
-    if (btnRoleAdmin) {
-      btnRoleAdmin.addEventListener('click', () => {
-        selectedLoginRole = 'admin';
-        btnRoleAdmin.classList.add('active');
-        if (btnRoleStudent) btnRoleStudent.classList.remove('active');
-        loginEmail.placeholder = "Enter your username";
-      });
+    if (tabAuthRegister) {
+      tabAuthRegister.addEventListener('click', () => switchToRegisterTab());
     }
 
     loginForm.addEventListener('submit', async (e) => {
@@ -203,6 +248,24 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         authErrorMessage.textContent = err.message;
         authErrorMessage.style.display = 'block';
+      }
+    });
+
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      registerErrorMessage.style.display = 'none';
+      try {
+        const user = await db.registerStudentAndLogin(
+          registerName.value.trim(),
+          registerUsername.value.trim(),
+          registerPassword.value
+        );
+        currentUser = user;
+        showToast(`Account created! Welcome, ${user.name}!`, 'success');
+        showAuthenticatedView(user);
+      } catch (err) {
+        registerErrorMessage.textContent = err.message;
+        registerErrorMessage.style.display = 'block';
       }
     });
 
@@ -268,6 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
       adminStudentMonitorSection.style.display = 'none';
       contentDate.value = getTodayDateString();
       loadContentFormForDate(getTodayDateString());
+      renderAdminContentTable();
     });
 
     filterBtns.forEach(btn => {
@@ -292,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       db.savePractice(practiceData);
       showToast(`Daily practice published for ${contentDate.value}!`, 'success');
+      renderAdminContentTable();
     });
 
     contentDate.addEventListener('change', () => {
@@ -350,24 +415,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let practice = db.getPracticeByDate(todayStr);
     if (!practice) {
-      practice = {
-        speakingTopic: "Practice speaking in English for 20 minutes about your daily routine and personal hobbies.",
-        chatgptPrompt: `"I am practicing spoken English. Please have a conversation with me about my daily routine and hobbies. Ask me clear questions, help me expand my vocabulary, and correct my errors."`,
-        listeningTitle: "Daily English Conversation & Listening Practice",
-        listeningInstruction: "Watch the video clip and note key vocabulary words.",
-        listeningUrl: "https://www.youtube.com/embed/5qap5aO4i9A"
-      };
+      speakingTopicText.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">No practice content published by your instructor for today yet.</span>`;
+      chatgptPromptText.textContent = "No prompt published for today yet.";
+      btnToggleSpeaking.disabled = true;
+      btnToggleSpeaking.style.opacity = '0.5';
+      btnToggleSpeaking.style.cursor = 'not-allowed';
+
+      listeningTitleText.textContent = "No listening practice published for today yet";
+      listeningInstructionText.textContent = "Your instructor has not published a practice drill for today yet. Please check back later.";
+      listeningIframe.src = "about:blank";
+      listeningDirectLink.style.display = "none";
+      btnToggleListening.disabled = true;
+      btnToggleListening.style.opacity = '0.5';
+      btnToggleListening.style.cursor = 'not-allowed';
+    } else {
+      btnToggleSpeaking.disabled = false;
+      btnToggleSpeaking.style.opacity = '1';
+      btnToggleSpeaking.style.cursor = 'pointer';
+
+      btnToggleListening.disabled = false;
+      btnToggleListening.style.opacity = '1';
+      btnToggleListening.style.cursor = 'pointer';
+      listeningDirectLink.style.display = "inline-flex";
+
+      speakingTopicText.textContent = practice.speakingTopic;
+      chatgptPromptText.textContent = practice.chatgptPrompt;
+
+      listeningTitleText.textContent = practice.listeningTitle;
+      listeningInstructionText.textContent = practice.listeningInstruction || "Watch the resource carefully to practice listening comprehension.";
+      
+      const embedUrl = formatYoutubeEmbedUrl(practice.listeningUrl);
+      listeningIframe.src = embedUrl;
+      listeningDirectLink.href = embedUrl.replace('/embed/', '/watch?v=');
     }
-
-    speakingTopicText.textContent = practice.speakingTopic;
-    chatgptPromptText.textContent = practice.chatgptPrompt;
-
-    listeningTitleText.textContent = practice.listeningTitle;
-    listeningInstructionText.textContent = practice.listeningInstruction || "Watch the resource carefully to practice listening comprehension.";
-    
-    const embedUrl = formatYoutubeEmbedUrl(practice.listeningUrl);
-    listeningIframe.src = embedUrl;
-    listeningDirectLink.href = embedUrl.replace('/embed/', '/watch?v=');
 
     const todayLog = db.getStudentLogForDate(currentUser.id, todayStr);
     const isSpeakingDone = todayLog ? todayLog.speakingCompleted : false;
@@ -402,20 +482,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderWeeklyHistoryTable() {
     weeklyHistoryTableBody.innerHTML = '';
+    const practices = db.getPractices();
     const logs = db.getStudentLogs(currentUser.id);
-    const today = new Date();
+    const todayStr = getTodayDateString();
 
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // Get array of published practice dates, sorted descending (newest first)
+    const publishedDates = Object.keys(practices).sort((a, b) => b.localeCompare(a));
+
+    if (publishedDates.length === 0) {
+      weeklyHistoryTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            <iconify-icon icon="lucide:calendar-x" style="font-size: 20px; vertical-align: middle; margin-right: 6px;"></iconify-icon>
+            No practice content published yet by your instructor.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    publishedDates.forEach(dateStr => {
+      const parts = dateStr.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const isToday = (dateStr === todayStr);
 
       const log = logs.find(l => l.date === dateStr);
       const spkDone = log ? log.speakingCompleted : false;
       const lisDone = log ? log.listeningCompleted : false;
 
-      let dayStatusBadge = `<span class="status-badge pending">Incomplete</span>`;
+      let dayStatusBadge = `<span class="status-badge pending">Pending</span>`;
       if (spkDone && lisDone) {
         dayStatusBadge = `<span class="status-badge completed"><iconify-icon icon="lucide:star"></iconify-icon> Fully Complete</span>`;
       } else if (spkDone || lisDone) {
@@ -424,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="font-weight: 600;">${dayName} ${i === 0 ? '<span style="color: var(--accent-primary); font-size: 11px;">(Today)</span>' : ''}</td>
+        <td style="font-weight: 600;">${dayName} ${isToday ? '<span style="color: var(--accent-primary); font-size: 11px;">(Today)</span>' : ''}</td>
         <td>
           ${spkDone 
             ? '<span style="color: var(--accent-success); font-weight: 600;"><iconify-icon icon="lucide:check"></iconify-icon> Completed</span>' 
@@ -438,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${dayStatusBadge}</td>
       `;
       weeklyHistoryTableBody.appendChild(tr);
-    }
+    });
   }
 
   // --- Admin Dashboard Render Functions ---
@@ -450,6 +549,67 @@ document.addEventListener('DOMContentLoaded', () => {
     adminStatInactiveToday.textContent = overview.inactiveToday;
 
     renderAdminStudentTable();
+    renderAdminContentTable();
+  }
+
+  function renderAdminContentTable() {
+    const adminContentTableBody = document.getElementById('adminContentTableBody');
+    if (!adminContentTableBody) return;
+
+    adminContentTableBody.innerHTML = '';
+    const practices = db.getPractices();
+    const publishedDates = Object.keys(practices).sort((a, b) => b.localeCompare(a));
+
+    if (publishedDates.length === 0) {
+      adminContentTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No daily practice content published yet. Use the form below to publish your first assignment.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    publishedDates.forEach(dateStr => {
+      const practice = practices[dateStr];
+      const parts = dateStr.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      const formattedDate = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight: 700; color: var(--text-main); font-family: monospace;">
+          ${escapeHtml(dateStr)}
+          <div style="font-size: 11px; font-weight: 400; color: var(--text-muted);">${formattedDate}</div>
+        </td>
+        <td style="max-width: 250px; font-size: 13px;">
+          <div style="font-weight: 600; color: var(--accent-speaking); text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em;">Speaking Topic</div>
+          <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(practice.speakingTopic)}">${escapeHtml(practice.speakingTopic)}</div>
+        </td>
+        <td style="max-width: 220px; font-size: 13px;">
+          <div style="font-weight: 600; color: var(--accent-listening); text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em;">Listening Activity</div>
+          <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(practice.listeningTitle)}">${escapeHtml(practice.listeningTitle)}</div>
+        </td>
+        <td style="font-size: 12px; color: var(--text-muted);">
+          ${practice.publishedAt ? new Date(practice.publishedAt).toLocaleDateString() : 'Published'}
+        </td>
+        <td>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" class="btn-table-action" onclick="editPracticeContent('${dateStr}')" title="Edit Assignment">
+              <iconify-icon icon="lucide:file-edit"></iconify-icon> Edit
+            </button>
+            <button type="button" class="btn-table-action btn-table-danger" onclick="deletePracticeContent('${dateStr}')" title="Delete Assignment">
+              <iconify-icon icon="lucide:trash-2"></iconify-icon> Delete
+            </button>
+          </div>
+        </td>
+      `;
+      adminContentTableBody.appendChild(tr);
+    });
   }
 
   function renderAdminStudentTable() {
@@ -575,6 +735,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Global Window Helpers ---
+  window.refreshCurrentView = function() {
+    if (currentUser) {
+      if (currentUser.role === 'admin') {
+        renderAdminDashboard();
+      } else {
+        renderStudentDashboard();
+      }
+    }
+  };
+
+  window.editPracticeContent = function(dateStr) {
+    contentDate.value = dateStr;
+    loadContentFormForDate(dateStr);
+    dailyContentForm.scrollIntoView({ behavior: 'smooth' });
+    showToast(`Loaded assignment for ${dateStr} into edit form.`, 'info');
+  };
+
+  window.deletePracticeContent = function(dateStr) {
+    if (confirm(`Are you sure you want to delete the published practice for ${dateStr}?`)) {
+      db.deletePractice(dateStr);
+      showToast(`Practice content for ${dateStr} deleted.`, 'info');
+      renderAdminContentTable();
+      renderAdminDashboard();
+      if (typeof window.refreshCurrentView === 'function') {
+        window.refreshCurrentView();
+      }
+    }
+  };
+
   window.editStudentModal = function(id) {
     openStudentModal(id);
   };

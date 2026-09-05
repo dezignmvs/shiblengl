@@ -20,8 +20,10 @@
   <!-- Main CSS System -->
   <link rel="stylesheet" href="styles.css">
   
-  <!-- PocketBase Web SDK (https://pocketbase.io) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pocketbase/0.21.1/pocketbase.umd.js"></script>
+  <!-- Firebase Web SDK v10 (Compat Version) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -138,18 +140,19 @@
     <!-- 1. AUTH / LOGIN VIEW -->
     <section id="authView" class="auth-container" style="display: none;">
       <div class="login-card">
-        <div style="text-align: center; margin-bottom: 24px;">
+        <div style="text-align: center; margin-bottom: 20px;">
           <div class="brand-icon" id="loginCardIcon" style="margin: 0 auto 12px; width: 48px; height: 48px; font-size: 26px; background: #4a0467; color: #ffffff;">
             <iconify-icon icon="ph:fingerprint-duotone"></iconify-icon>
           </div>
-          <h2 style="font-family: var(--font-heading); font-weight: 800;">Welcome Back</h2>
-          <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Sign in to your practice portal</p>
+          <h2 id="authCardTitle" style="font-family: var(--font-heading); font-weight: 800;">Student Portal</h2>
+          <p id="authCardSubtitle" style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Sign in to dashboard</p>
         </div>
 
+        <!-- Sign In Form -->
         <form id="loginForm" autocomplete="off">
           <div class="form-group">
-            <label class="form-label" for="loginEmail">Username</label>
-            <input type="text" id="loginEmail" class="form-input" placeholder="Enter your username" autocomplete="off" required>
+            <label class="form-label" for="loginEmail">Username or Email</label>
+            <input type="text" id="loginEmail" class="form-input" placeholder="Enter your username or email" autocomplete="off" required>
           </div>
           <div class="form-group">
             <label class="form-label" for="loginPassword">Password</label>
@@ -159,6 +162,27 @@
           
           <button type="submit" class="btn-submit" style="width: 100%;">
             <iconify-icon icon="lucide:log-in" style="font-size: 16px;"></iconify-icon> Sign In
+          </button>
+        </form>
+
+        <!-- Create Account Form (Initially Hidden) -->
+        <form id="registerForm" autocomplete="off" style="display: none;">
+          <div class="form-group">
+            <label class="form-label" for="registerName">Full Name</label>
+            <input type="text" id="registerName" class="form-input" placeholder="e.g. Sarah Jenkins" autocomplete="name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="registerUsername">Username or Email</label>
+            <input type="text" id="registerUsername" class="form-input" placeholder="e.g. sarah or sarah@gmail.com" autocomplete="username" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="registerPassword">Password</label>
+            <input type="password" id="registerPassword" class="form-input" placeholder="Create a password" autocomplete="new-password" required minlength="4">
+          </div>
+          <div id="registerErrorMessage" style="color: var(--accent-danger); font-size: 13px; margin-bottom: 14px; display: none;"></div>
+          
+          <button type="submit" class="btn-submit" style="width: 100%;">
+            <iconify-icon icon="lucide:user-plus" style="font-size: 16px;"></iconify-icon> Create Account & Start Practice
           </button>
         </form>
       </div>
@@ -411,6 +435,36 @@
 
       <!-- Section B: Daily Content Management -->
       <div id="adminContentSection" class="card" style="display: none;">
+        
+        <!-- Table of Published Daily Practice Content -->
+        <div style="margin-bottom: 28px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <h3 class="card-title" style="margin-bottom: 4px;">Published Practice Assignments</h3>
+              <p style="font-size: 13px; color: var(--text-muted);">Manage all daily speaking &amp; listening assignments published for students</p>
+            </div>
+          </div>
+
+          <div class="weekly-table-container">
+            <table class="weekly-table">
+              <thead>
+                <tr>
+                  <th>Assignment Date</th>
+                  <th>Speaking Topic</th>
+                  <th>Listening Activity</th>
+                  <th>Published On</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminContentTableBody">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border-color); margin: 28px 0;">
+
         <h3 class="card-title" style="margin-bottom: 20px;">Publish / Edit Daily Practice Content</h3>
         
         <form id="dailyContentForm">
@@ -517,7 +571,7 @@
   </nav>
 
   <!-- Application Logic Scripts -->
-  <script src="js/pocketbase-config.js"></script>
+  <script src="js/firebase-config.js"></script>
   <script src="js/db.js"></script>
   <script src="js/app.js"></script>
 

@@ -1,7 +1,7 @@
 /**
  * Data Access Layer (db.js)
  * Advanced Spoken English Level 1 Tracking System
- * Integrated with PocketBase (https://pocketbase.io) & Local Storage Fallback
+ * Integrated with Firebase (v10 SDK) & Local Storage Fallback
  */
 
 function getTodayDateString() {
@@ -54,44 +54,16 @@ const INITIAL_STUDENTS = [
 const TODAY = getTodayDateString();
 
 const INITIAL_PRACTICES = {};
-INITIAL_PRACTICES[TODAY] = {
-  date: TODAY,
-  speakingTopic: "Practice speaking in English for 20 minutes about your childhood memories, your hometown, and your school life.",
-  chatgptPrompt: `"I am practicing spoken English for Advanced Level 1. Please have a friendly conversation with me about my childhood and school life. Ask me open-ended questions, encourage me to expand on my answers, and point out any major grammar or vocabulary mistakes."`,
-  listeningTitle: "Mastering Fluent English Expression & Daily Vocabulary",
-  listeningInstruction: "Listen to the speaker's pronunciation, pause after key sentences, and practice shadowing the dialogue out loud.",
-  listeningUrl: "https://www.youtube.com/embed/5qap5aO4i9A",
-  publishedAt: new Date().toISOString()
-};
 
-const INITIAL_LOGS = [
-  {
-    id: "log-001",
-    studentId: "std-101",
-    date: TODAY,
-    speakingCompleted: true,
-    speakingTimestamp: new Date().toISOString(),
-    listeningCompleted: true,
-    listeningTimestamp: new Date().toISOString()
-  },
-  {
-    id: "log-002",
-    studentId: "std-102",
-    date: TODAY,
-    speakingCompleted: true,
-    speakingTimestamp: new Date().toISOString(),
-    listeningCompleted: false,
-    listeningTimestamp: null
-  }
-];
+const INITIAL_LOGS = [];
 
 class StorageService {
   constructor() {
     this.STORAGE_KEYS = {
-      STUDENTS: 'ase_students_pb_v1',
-      PRACTICES: 'ase_practices_pb_v1',
-      LOGS: 'ase_logs_pb_v1',
-      CURRENT_USER: 'ase_current_user_pb_v1'
+      STUDENTS: 'ase_students_fb_v2',
+      PRACTICES: 'ase_practices_fb_v2',
+      LOGS: 'ase_logs_fb_v2',
+      CURRENT_USER: 'ase_current_user_fb_v2'
     };
     this.initStorage();
   }
@@ -115,6 +87,150 @@ class StorageService {
     if (!localStorage.getItem(this.STORAGE_KEYS.LOGS)) {
       localStorage.setItem(this.STORAGE_KEYS.LOGS, JSON.stringify(INITIAL_LOGS));
     }
+
+    // Background sync from Firebase Firestore if available
+    this.syncFromFirebase();
+  }
+
+  async syncFromFirebase() {
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      try {
+        // 1. Sync or Seed Users
+        const usersSnap = await firebaseDb.collection('users').get();
+        if (!usersSnap.empty) {
+          const fbUsers = [];
+          usersSnap.forEach(doc => fbUsers.push(doc.data()));
+          if (fbUsers.length > 0) {
+            this.saveUsers(fbUsers);
+          }
+        } else {
+          // Seed initial users into Firestore
+          const initialUsers = this.getUsers();
+          for (const u of initialUsers) {
+            await firebaseDb.collection('users').doc(u.id).set(u);
+          }
+          console.log("Seeded initial users into Firestore.");
+        }
+
+        // 2. Sync or Seed Practices
+        const practicesSnap = await firebaseDb.collection('practices').get();
+        if (!practicesSnap.empty) {
+          const fbPractices = {};
+          practicesSnap.forEach(doc => {
+            fbPractices[doc.id] = doc.data();
+          });
+          localStorage.setItem(this.STORAGE_KEYS.PRACTICES, JSON.stringify(fbPractices));
+        } else {
+          // Seed initial practices into Firestore
+          const initialPractices = this.getPractices();
+          for (const dateStr in initialPractices) {
+            await firebaseDb.collection('practices').doc(dateStr).set(initialPractices[dateStr]);
+          }
+          console.log("Seeded initial practices into Firestore.");
+        }
+
+        // 3. Sync or Seed Logs
+        const logsSnap = await firebaseDb.collection('logs').get();
+        if (!logsSnap.empty) {
+          const fbLogs = [];
+          logsSnap.forEach(doc => fbLogs.push(doc.data()));
+          localStorage.setItem(this.STORAGE_KEYS.LOGS, JSON.stringify(fbLogs));
+        } else {
+          // Seed initial logs into Firestore
+          const initialLogs = this.getLogs();
+          for (const log of initialLogs) {
+            await firebaseDb.collection('logs').doc(log.id).set(log);
+          }
+          console.log("Seeded initial logs into Firestore.");
+        }
+
+        // Setup real-time Firestore listeners
+        this.setupRealtimeListeners();
+      } catch (err) {
+        console.warn("Firestore sync error:", err);
+      }
+    }
+  }
+
+  setupRealtimeListeners() {
+    if (this._listenersAttached || typeof firebaseDb === 'undefined' || !firebaseDb) return;
+    this._listenersAttached = true;
+
+    firebaseDb.collection('users').onSnapshot(snapshot => {
+      const fbUsers = [];
+      if (snapshot && !snapshot.empty) {
+        snapshot.forEach(doc => fbUsers.push(doc.data()));
+      }
+      this.saveUsers(fbUsers);
+      if (typeof window.refreshCurrentView === 'function') {
+        window.refreshCurrentView();
+      }
+    }, err => console.warn("Firestore users listener warning:", err));
+
+    firebaseDb.collection('practices').onSnapshot(snapshot => {
+      const fbPractices = {};
+      if (snapshot && !snapshot.empty) {
+        snapshot.forEach(doc => {
+          fbPractices[doc.id] = doc.data();
+        });
+      }
+      localStorage.setItem(this.STORAGE_KEYS.PRACTICES, JSON.stringify(fbPractices));
+      if (typeof window.refreshCurrentView === 'function') {
+        window.refreshCurrentView();
+      }
+    }, err => console.warn("Firestore practices listener warning:", err));
+
+    firebaseDb.collection('logs').onSnapshot(snapshot => {
+      const fbLogs = [];
+      if (snapshot && !snapshot.empty) {
+        snapshot.forEach(doc => fbLogs.push(doc.data()));
+      }
+      localStorage.setItem(this.STORAGE_KEYS.LOGS, JSON.stringify(fbLogs));
+      if (typeof window.refreshCurrentView === 'function') {
+        window.refreshCurrentView();
+      }
+    }, err => console.warn("Firestore logs listener warning:", err));
+  }
+
+  async resetAndSeedFirestore() {
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      console.log("Resetting Firestore collections and seeding fresh data...");
+      try {
+        const usersSnap = await firebaseDb.collection('users').get();
+        for (const doc of usersSnap.docs) {
+          await firebaseDb.collection('users').doc(doc.id).delete();
+        }
+        for (const user of INITIAL_STUDENTS) {
+          await firebaseDb.collection('users').doc(user.id).set(user);
+        }
+
+        const practicesSnap = await firebaseDb.collection('practices').get();
+        for (const doc of practicesSnap.docs) {
+          await firebaseDb.collection('practices').doc(doc.id).delete();
+        }
+        for (const dateStr in INITIAL_PRACTICES) {
+          await firebaseDb.collection('practices').doc(dateStr).set(INITIAL_PRACTICES[dateStr]);
+        }
+
+        const logsSnap = await firebaseDb.collection('logs').get();
+        for (const doc of logsSnap.docs) {
+          await firebaseDb.collection('logs').doc(doc.id).delete();
+        }
+        for (const log of INITIAL_LOGS) {
+          await firebaseDb.collection('logs').doc(log.id).set(log);
+        }
+
+        this.saveUsers(INITIAL_STUDENTS);
+        localStorage.setItem(this.STORAGE_KEYS.PRACTICES, JSON.stringify(INITIAL_PRACTICES));
+        localStorage.setItem(this.STORAGE_KEYS.LOGS, JSON.stringify(INITIAL_LOGS));
+
+        console.log("Firestore reset & seeded successfully!");
+        return true;
+      } catch (err) {
+        console.error("Firestore reset error:", err);
+        throw err;
+      }
+    }
   }
 
   // --- Auth & User Methods ---
@@ -126,38 +242,44 @@ class StorageService {
     localStorage.setItem(this.STORAGE_KEYS.STUDENTS, JSON.stringify(users));
   }
 
-  async authenticateAsync(email, password) {
-    // If PocketBase server is connected, attempt PocketBase Auth first
-    if (isPocketBaseAvailable && pb) {
+  async getUsersAsync() {
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
       try {
-        const authData = await pb.collection('users').authWithPassword(email, password);
-        const pbUser = {
-          id: authData.record.id,
-          name: authData.record.name || authData.record.email.split('@')[0],
-          email: authData.record.email,
-          role: authData.record.role || 'student',
-          status: 'active'
-        };
-        this.setCurrentUser(pbUser);
-        return pbUser;
+        const usersSnap = await firebaseDb.collection('users').get();
+        if (!usersSnap.empty) {
+          const fbUsers = [];
+          usersSnap.forEach(doc => fbUsers.push(doc.data()));
+          this.saveUsers(fbUsers);
+          return fbUsers;
+        }
       } catch (err) {
-        console.warn("PocketBase remote auth attempt failed, checking local credentials:", err);
+        console.warn("Firestore getUsersAsync error:", err);
       }
     }
-
-    // Local / Offline authentication fallback
-    return this.authenticateLocal(email, password);
+    return this.getUsers();
   }
 
-  authenticate(email, password) {
-    return this.authenticateLocal(email, password);
+  async authenticateAsync(emailOrUsername, password) {
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      try {
+        const usersSnap = await firebaseDb.collection('users').get();
+        if (!usersSnap.empty) {
+          const fbUsers = [];
+          usersSnap.forEach(doc => fbUsers.push(doc.data()));
+          this.saveUsers(fbUsers);
+        }
+      } catch (err) {
+        console.warn("Firestore pre-auth fetch error:", err);
+      }
+    }
+    return this.authenticateLocal(emailOrUsername, password);
   }
 
-  authenticateLocal(email, password) {
+  authenticateLocal(emailOrUsername, password) {
     const users = this.getUsers();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanInput = emailOrUsername.trim().toLowerCase();
     const user = users.find(u => 
-      (u.email.toLowerCase() === cleanEmail || u.email.toLowerCase().split('@')[0] === cleanEmail) && 
+      (u.email.toLowerCase() === cleanInput || u.email.toLowerCase().split('@')[0] === cleanInput) && 
       u.password === password
     );
     if (user) {
@@ -180,40 +302,53 @@ class StorageService {
   }
 
   logout() {
-    if (pb && pb.authStore) {
-      pb.authStore.clear();
+    if (typeof firebaseAuth !== 'undefined' && firebaseAuth) {
+      firebaseAuth.signOut().catch(() => {});
     }
     localStorage.removeItem(this.STORAGE_KEYS.CURRENT_USER);
   }
 
-  addStudent(name, email, password) {
+  addStudent(name, emailOrUsername, password, role = "student") {
     const users = this.getUsers();
-    if (users.some(u => u.email.toLowerCase() === email.trim().toLowerCase())) {
-      throw new Error("A student with this email address already exists.");
+    const cleanInput = emailOrUsername.trim().toLowerCase();
+    if (!cleanInput) {
+      throw new Error("Username or email is required.");
     }
+    if (users.some(u => u.email.toLowerCase() === cleanInput || u.email.toLowerCase().split('@')[0] === cleanInput)) {
+      throw new Error("An account with this username or email address already exists.");
+    }
+
+    let email = cleanInput;
+    if (!email.includes('@')) {
+      email = `${cleanInput.replace(/[^a-z0-9]/g, '')}@englishlevel1.com`;
+    }
+
     const newStudent = {
       id: "std-" + Date.now(),
-      name,
-      email: email.trim(),
-      password,
-      role: "student",
+      name: name.trim(),
+      email: email,
+      username: cleanInput.split('@')[0],
+      password: password,
+      role: role,
       status: "active",
       createdAt: getTodayDateString()
     };
     users.push(newStudent);
     this.saveUsers(users);
 
-    // Sync to PocketBase in background if available
-    if (isPocketBaseAvailable && pb) {
-      pb.collection('users').create({
-        name,
-        email: email.trim(),
-        password,
-        passwordConfirm: password,
-        role: "student"
-      }).catch(err => console.error("PocketBase async sync error:", err));
+    // Sync to Firebase Firestore
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      firebaseDb.collection('users').doc(newStudent.id).set(newStudent)
+        .then(() => console.log("User synced to Firebase Firestore:", newStudent.id))
+        .catch(err => console.error("Firebase Firestore user creation error:", err));
     }
 
+    return newStudent;
+  }
+
+  async registerStudentAndLogin(name, emailOrUsername, password) {
+    const newStudent = this.addStudent(name, emailOrUsername, password);
+    this.setCurrentUser(newStudent);
     return newStudent;
   }
 
@@ -223,6 +358,12 @@ class StorageService {
     if (index !== -1) {
       users[index] = { ...users[index], ...updatedData };
       this.saveUsers(users);
+
+      if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+        firebaseDb.collection('users').doc(studentId).update(updatedData)
+          .catch(err => console.error("Firebase update user error:", err));
+      }
+
       return users[index];
     }
     throw new Error("Student not found.");
@@ -234,6 +375,12 @@ class StorageService {
     if (user) {
       user.status = user.status === 'active' ? 'inactive' : 'active';
       this.saveUsers(users);
+
+      if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+        firebaseDb.collection('users').doc(studentId).update({ status: user.status })
+          .catch(err => console.error("Firebase toggle user status error:", err));
+      }
+
       return user;
     }
     throw new Error("Student not found.");
@@ -243,6 +390,11 @@ class StorageService {
     let users = this.getUsers();
     users = users.filter(u => u.id !== studentId);
     this.saveUsers(users);
+
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      firebaseDb.collection('users').doc(studentId).delete()
+        .catch(err => console.error("Firebase delete user error:", err));
+    }
   }
 
   // --- Daily Practice Content Methods ---
@@ -266,9 +418,11 @@ class StorageService {
     };
     localStorage.setItem(this.STORAGE_KEYS.PRACTICES, JSON.stringify(practices));
 
-    // Sync to PocketBase if connected
-    if (isPocketBaseAvailable && pb) {
-      pb.collection('practices').create(practiceData).catch(err => console.error("PocketBase save practice sync error:", err));
+    // Sync to Firebase Firestore
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      firebaseDb.collection('practices').doc(dateStr).set(practices[dateStr])
+        .then(() => console.log("Practice synced to Firebase Firestore:", dateStr))
+        .catch(err => console.error("Firebase practice sync error:", err));
     }
 
     return practices[dateStr];
@@ -278,6 +432,11 @@ class StorageService {
     const practices = this.getPractices();
     delete practices[dateStr];
     localStorage.setItem(this.STORAGE_KEYS.PRACTICES, JSON.stringify(practices));
+
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      firebaseDb.collection('practices').doc(dateStr).delete()
+        .catch(err => console.error("Firebase delete practice error:", err));
+    }
   }
 
   // --- Practice Completion Log Methods ---
@@ -323,9 +482,11 @@ class StorageService {
 
     localStorage.setItem(this.STORAGE_KEYS.LOGS, JSON.stringify(logs));
 
-    // Sync to PocketBase
-    if (isPocketBaseAvailable && pb) {
-      pb.collection('logs').create(log).catch(err => console.error("PocketBase log sync error:", err));
+    // Sync to Firebase Firestore
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      firebaseDb.collection('logs').doc(log.id).set(log)
+        .then(() => console.log("Log synced to Firebase Firestore:", log.id))
+        .catch(err => console.error("Firebase log sync error:", err));
     }
 
     return log;
@@ -396,5 +557,6 @@ class StorageService {
   }
 }
 
-// Global DB instance
+// Global instance handle
 const db = new StorageService();
+window.resetAndSeedFirestore = () => db.resetAndSeedFirestore();

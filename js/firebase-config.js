@@ -1,19 +1,22 @@
-// Firebase Configuration & Initialization Script
-// Supporting standard Firebase Web SDK (v10 modular / compat API)
+/**
+ * Firebase Configuration & Initialization Script
+ * Uses Firebase Web SDK (v10 Compat)
+ */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDEMO_KEY_REPLACE_WITH_YOURS",
-  authDomain: "spoken-english-level1.firebaseapp.com",
-  projectId: "spoken-english-level1",
-  storageBucket: "spoken-english-level1.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890"
+  apiKey: "AIzaSyAvYJSaGLSqInY41ZD5GkCqnI2gh2OZYQ0",
+  authDomain: "mediacap-1.firebaseapp.com",
+  projectId: "mediacap-1",
+  storageBucket: "mediacap-1.firebasestorage.app",
+  messagingSenderId: "732036687295",
+  appId: "1:732036687295:web:da3565e8a1a6590f64ad0a",
+  measurementId: "G-PC6H12M9NQ"
 };
 
 // Global handles for Firebase services
 let firebaseApp = null;
 let firebaseAuth = null;
-let firebaseFirestore = null;
+let firebaseDb = null;
 let isFirebaseAvailable = false;
 
 function initFirebase() {
@@ -21,20 +24,20 @@ function initFirebase() {
     if (typeof firebase !== 'undefined') {
       firebaseApp = firebase.initializeApp(firebaseConfig);
       firebaseAuth = firebase.auth();
-      firebaseFirestore = firebase.firestore();
+      firebaseDb = firebase.firestore();
       
-      // Check if real keys are provided (not demo string)
-      if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('DEMO_KEY')) {
-        isFirebaseAvailable = true;
-        console.log("Firebase initialized successfully with live backend.");
-      } else {
-        console.log("Firebase initialized in Local/Demo Mode. Using browser storage backend.");
+      isFirebaseAvailable = true;
+      console.log("Firebase initialized successfully with project:", firebaseConfig.projectId);
+
+      // Trigger DB sync if DB service exists
+      if (typeof db !== 'undefined' && db && typeof db.syncFromFirebase === 'function') {
+        db.syncFromFirebase();
       }
     } else {
-      console.warn("Firebase SDK script tag not detected. App running seamlessly in Local Storage mode.");
+      console.warn("Firebase SDK script tag not detected. App running in Local Storage mode.");
     }
   } catch (error) {
-    console.error("Firebase initialization failed:", error);
+    console.error("Firebase initialization error:", error);
   }
 }
 
