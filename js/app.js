@@ -225,9 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
       showAuthView('login');
     });
 
-    btnLandingAdmin.addEventListener('click', () => {
-      showAuthView('login');
-    });
+    if (btnLandingAdmin) {
+      btnLandingAdmin.addEventListener('click', () => {
+        showAuthView('login');
+      });
+    }
 
     if (tabAuthLogin) {
       tabAuthLogin.addEventListener('click', () => switchToLoginTab());
