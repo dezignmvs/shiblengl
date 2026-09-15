@@ -209,6 +209,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Event Listeners Setup ---
   function setupEventListeners() {
+    // Keep student/admin dashboards in separate browser tabs in sync, even when
+    // the app is using the local-storage fallback instead of Firestore.
+    window.addEventListener('storage', (event) => {
+      if (event.key && event.key !== db.STORAGE_KEYS.LOGS) return;
+      if (typeof window.refreshCurrentView === 'function') window.refreshCurrentView();
+    });
+
     brandLogo.addEventListener('click', () => {
       if (currentUser) {
         showAuthenticatedView(currentUser);
@@ -293,30 +300,36 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    btnToggleSpeaking.addEventListener('click', () => {
+    btnToggleSpeaking.addEventListener('click', async () => {
       if (!currentUser) return;
       const todayStr = getTodayDateString();
-      const log = db.togglePracticeCompletion(currentUser.id, todayStr, 'speaking');
-      renderStudentDashboard();
-      showToast(
-        log.speakingCompleted 
-          ? 'Great job! Speaking practice marked as completed.' 
-          : 'Speaking practice status updated.', 
-        'success'
-      );
+      btnToggleSpeaking.disabled = true;
+      try {
+        const log = await db.togglePracticeCompletion(currentUser.id, todayStr, 'speaking');
+        renderStudentDashboard();
+        showToast(log.speakingCompleted
+          ? 'Great job! Speaking practice marked as completed.'
+          : 'Speaking practice marked as pending again.', 'success');
+      } catch (err) {
+        renderStudentDashboard();
+        showToast(err.message, 'error');
+      }
     });
 
-    btnToggleListening.addEventListener('click', () => {
+    btnToggleListening.addEventListener('click', async () => {
       if (!currentUser) return;
       const todayStr = getTodayDateString();
-      const log = db.togglePracticeCompletion(currentUser.id, todayStr, 'listening');
-      renderStudentDashboard();
-      showToast(
-        log.listeningCompleted 
-          ? 'Awesome! Listening practice marked as completed.' 
-          : 'Listening practice status updated.', 
-        'success'
-      );
+      btnToggleListening.disabled = true;
+      try {
+        const log = await db.togglePracticeCompletion(currentUser.id, todayStr, 'listening');
+        renderStudentDashboard();
+        showToast(log.listeningCompleted
+          ? 'Awesome! Listening practice marked as completed.'
+          : 'Listening practice marked as pending again.', 'success');
+      } catch (err) {
+        renderStudentDashboard();
+        showToast(err.message, 'error');
+      }
     });
 
     tabAdminStudents.addEventListener('click', () => {

@@ -446,15 +446,21 @@ class StorageService {
 
   getStudentLogs(studentId) {
     const logs = this.getLogs();
-    return logs.filter(l => l.studentId === studentId);
+    const logsByDate = new Map();
+    logs.filter(l => l.studentId === studentId).forEach(log => {
+      const existing = logsByDate.get(log.date);
+      const logTime = log.updatedAt || log.speakingTimestamp || log.listeningTimestamp || '';
+      const existingTime = existing && (existing.updatedAt || existing.speakingTimestamp || existing.listeningTimestamp || '');
+      if (!existing || logTime >= existingTime) logsByDate.set(log.date, log);
+    });
+    return Array.from(logsByDate.values());
   }
 
   getStudentLogForDate(studentId, dateStr) {
-    const logs = this.getLogs();
-    return logs.find(l => l.studentId === studentId && l.date === dateStr) || null;
+    return this.getStudentLogs(studentId).find(l => l.date === dateStr) || null;
   }
 
-  togglePracticeCompletion(studentId, dateStr, practiceType) {
+  async togglePracticeCompletion(studentId, dateStr, practiceType) {
     const logs = this.getLogs();
     let log = logs.find(l => l.studentId === studentId && l.date === dateStr);
     
@@ -479,14 +485,19 @@ class StorageService {
       log.listeningCompleted = !log.listeningCompleted;
       log.listeningTimestamp = log.listeningCompleted ? nowIso : null;
     }
+    log.updatedAt = nowIso;
 
     localStorage.setItem(this.STORAGE_KEYS.LOGS, JSON.stringify(logs));
 
     // Sync to Firebase Firestore
     if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-      firebaseDb.collection('logs').doc(log.id).set(log)
-        .then(() => console.log("Log synced to Firebase Firestore:", log.id))
-        .catch(err => console.error("Firebase log sync error:", err));
+      try {
+        await firebaseDb.collection('logs').doc(log.id).set(log);
+        console.log("Log synced to Firebase Firestore:", log.id);
+      } catch (err) {
+        console.error("Firebase log sync error:", err);
+        throw new Error("Could not save your practice status. Please check your connection and try again.");
+      }
     }
 
     return log;
@@ -538,7 +549,7 @@ class StorageService {
     let inactiveToday = 0;
 
     users.forEach(student => {
-      const log = logs.find(l => l.studentId === student.id && l.date === todayStr);
+      const log = this.getStudentLogForDate(student.id, todayStr);
       if (log) {
         if (log.speakingCompleted) speakingCompletedToday++;
         if (log.listeningCompleted) listeningCompletedToday++;
