@@ -504,7 +504,7 @@ class StorageService {
   }
 
   // --- Progress & Analytics Calculation Methods ---
-  getStudentStats(studentId) {
+  getStudentStats(studentId, referenceDate = new Date()) {
     const logs = this.getStudentLogs(studentId);
     let speakingDays = 0;
     let listeningDays = 0;
@@ -514,21 +514,28 @@ class StorageService {
       if (log.listeningCompleted) listeningDays++;
     });
 
-    let currentStreak = 0;
-    const today = new Date();
+    // A streak stays active until the end of today, so an unfinished today does
+    // not erase a streak that was active yesterday. This is a 30-day program,
+    // therefore the displayed streak cannot exceed 30 days.
+    const completedDates = new Set(
+      logs
+        .filter(log => log.speakingCompleted || log.listeningCompleted)
+        .map(log => log.date)
+    );
+    const cursor = new Date(
+      referenceDate.getFullYear(),
+      referenceDate.getMonth(),
+      referenceDate.getDate()
+    );
 
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      
-      const dayLog = logs.find(l => l.date === dateStr);
-      if (dayLog && (dayLog.speakingCompleted || dayLog.listeningCompleted)) {
-        currentStreak++;
-      } else {
-        if (i === 0) continue; 
-        break;
-      }
+    let currentStreak = 0;
+    if (!completedDates.has(getLocalDateString(cursor))) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    while (currentStreak < 30 && completedDates.has(getLocalDateString(cursor))) {
+      currentStreak++;
+      cursor.setDate(cursor.getDate() - 1);
     }
 
     return {
@@ -566,6 +573,10 @@ class StorageService {
       inactiveToday
     };
   }
+}
+
+function getLocalDateString(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 // Global instance handle
