@@ -449,9 +449,9 @@ class StorageService {
     const logsByDate = new Map();
     logs.filter(l => l.studentId === studentId).forEach(log => {
       const existing = logsByDate.get(log.date);
-      const logTime = log.updatedAt || log.speakingTimestamp || log.listeningTimestamp || '';
-      const existingTime = existing && (existing.updatedAt || existing.speakingTimestamp || existing.listeningTimestamp || '');
-      if (!existing || logTime >= existingTime) logsByDate.set(log.date, log);
+      if (!existing || compareLogsByRecency(log, existing) > 0) {
+        logsByDate.set(log.date, log);
+      }
     });
     return Array.from(logsByDate.values());
   }
@@ -462,7 +462,12 @@ class StorageService {
 
   async togglePracticeCompletion(studentId, dateStr, practiceType) {
     const logs = this.getLogs();
-    let log = logs.find(l => l.studentId === studentId && l.date === dateStr);
+    // Old Firebase data can contain duplicate documents for one student/day.
+    // Always update the same newest record that getStudentLogs() displays.
+    let log = logs
+      .filter(l => l.studentId === studentId && l.date === dateStr)
+      .sort(compareLogsByRecency)
+      .pop();
     
     if (!log) {
       log = {
@@ -514,29 +519,20 @@ class StorageService {
       if (log.listeningCompleted) listeningDays++;
     });
 
-    // A streak stays active until the end of today, so an unfinished today does
-    // not erase a streak that was active yesterday. This is a 30-day program,
-    // therefore the displayed streak cannot exceed 30 days.
+    // In this 30-day program the streak represents the number of unique practice
+    // days completed, not an unbroken calendar sequence. Classes may not be
+    // published every calendar day, so gaps must not reset a student's progress.
+    const todayString = getLocalDateString(referenceDate);
     const completedDates = new Set(
       logs
-        .filter(log => log.speakingCompleted || log.listeningCompleted)
+        .filter(log =>
+          (log.speakingCompleted || log.listeningCompleted) &&
+          /^\d{4}-\d{2}-\d{2}$/.test(log.date) &&
+          log.date <= todayString
+        )
         .map(log => log.date)
     );
-    const cursor = new Date(
-      referenceDate.getFullYear(),
-      referenceDate.getMonth(),
-      referenceDate.getDate()
-    );
-
-    let currentStreak = 0;
-    if (!completedDates.has(getLocalDateString(cursor))) {
-      cursor.setDate(cursor.getDate() - 1);
-    }
-
-    while (currentStreak < 30 && completedDates.has(getLocalDateString(cursor))) {
-      currentStreak++;
-      cursor.setDate(cursor.getDate() - 1);
-    }
+    const currentStreak = Math.min(completedDates.size, 30);
 
     return {
       speakingDays,
@@ -577,6 +573,16 @@ class StorageService {
 
 function getLocalDateString(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getLogTimestamp(log) {
+  return log.updatedAt || log.speakingTimestamp || log.listeningTimestamp || '';
+}
+
+function compareLogsByRecency(a, b) {
+  const timeComparison = getLogTimestamp(a).localeCompare(getLogTimestamp(b));
+  if (timeComparison !== 0) return timeComparison;
+  return String(a.id || '').localeCompare(String(b.id || ''));
 }
 
 // Global instance handle
